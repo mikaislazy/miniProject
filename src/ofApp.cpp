@@ -7,7 +7,8 @@ void ofApp::setup()
     imgName = "faces.png";
     initImg.load(imgName);
     initImg.setImageType(OF_IMAGE_COLOR);
-    matImg = toCv(initImg);
+    mat = toCv(initImg);
+    processMat = toCv(initImg);
     // gui set up
     gui.setup();
     // image adjustement
@@ -44,13 +45,14 @@ void ofApp::update()
     {
         checkBoxSelected = 2;
     }
+    // update image when slider value change
+    imageAdjustment();
 }
 
 //--------------------------------------------------------------
 void ofApp::draw()
 {
-    imageAdjustment();
-    drawMat(matImg, 0, 0);
+    drawMat(processMat, 0, 0);
     gui.draw();
 }
 
@@ -127,9 +129,22 @@ void ofApp::saveImage(String imgName, Mat saveImg)
     cout << "Save Image" << endl;
 }
 
-Mat ofApp::scalarAdd(Mat m1, int val)
+Mat ofApp::scalarAdd(Mat src, float val)
 {
-    return m1 + val;
+    return src + val;
 }
 
-void
+void ofApp::imageAdjustment()
+{
+//    // contrast
+//    mat.convertTo(mat, -1, 1, contrastVal);
+//    // saturation
+//    cvtColor(mat, mat, CV_BGR2HSV);
+//    vector<Mat> channels;
+//    split(mat, channels);
+//    channels[1] = channels[1] + saturationVal;
+//    merge(channels, mat);
+//    cvtColor(mat, mat, CV_HSV2BGR);
+    // brightness
+    processMat = scalarAdd(mat, brightnessVal);
+}

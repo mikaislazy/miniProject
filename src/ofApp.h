@@ -32,11 +32,14 @@ public:
     void dragEvent(ofDragInfo dragInfo) override;
     void gotMessage(ofMessage msg) override;
 
+    void imageAdjustment();
     void saveImage(String imgName, Mat saveImg);
-    void scalarAdd(Mat src, int val); // add brightness
+    Mat scalarAdd(Mat src, float val); // add brightness
 
     ofImage initImg;
-    Mat matImg;
+    ofImage processImg;
+    Mat mat;
+    Mat processMat;
     string imgName;
     // gui
     ofxPanel gui;
@@ -47,9 +50,9 @@ public:
     ofxFloatSlider brushSize;
     int checkBoxSelected;
     // image adjustment
-    ofxIntSlider contrastVal;
-    ofxIntSlider saturationVal;
-    ofxIntSlider brightnessVal;
+    ofxFloatSlider contrastVal;
+    ofxFloatSlider saturationVal;
+    ofxFloatSlider brightnessVal;
     // binary image
     ofxButton binaryOtsu;
     // foreground extract
