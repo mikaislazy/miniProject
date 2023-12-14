@@ -4,17 +4,19 @@
 void ofApp::setup()
 {
     // image init set up
-    imgName = "faces.png";
+    imgName = "flower1.jpg";
     initImg.load(imgName);
+    greyImg.load(imgName);
     initImg.setImageType(OF_IMAGE_COLOR);
+    greyImg.setImageType(OF_IMAGE_GRAYSCALE);
     mat = toCv(initImg);
-    processMat = toCv(initImg);
+    mat.copyTo(processMat);
+    
     // gui set up
     gui.setup();
     // image adjustement
     gui.setPosition(initImg.getWidth(), 0);
-    gui.add(contrastVal.setup("Contrast Value", 0, -100, 100));
-    gui.add(saturationVal.setup("Saturation value", 0, -100, 100));
+    gui.add(contrastVal.setup("Contrast Value", 1, 0.1, 10));
     gui.add(brightnessVal.setup("Brightness value", 0, -100, 100));
 
     // filtering
@@ -24,9 +26,9 @@ void ofApp::setup()
     gui.add(median.setup("Median Filter"));
 
     // convert image
-    gui.add(binaryOtsu.setup("Binary Otsu"));
-    gui.add(knn.setup("KNN Segment"));
-    gui.add(knnSize.setup("KNN Size", 0, 1, 4));
+    gui.add(otsu.setup("Otsu"));
+    gui.add(CCA.setup("CCA Segment"));
+    gui.add(original.setup("Original Image"));
 }
 
 //--------------------------------------------------------------
@@ -35,24 +37,45 @@ void ofApp::update()
     // select checkbox for filtering
     if (box)
     {
-        checkBoxSelected = 0;
+        filterSelected = 0;
     }
     else if (gaussian)
     {
-        checkBoxSelected = 1;
+        filterSelected = 1;
     }
     else if (median)
     {
-        checkBoxSelected = 2;
+        filterSelected = 2;
     }
+    
+    //select the segmentation method
+    if (otsu)
+    {
+        segmentSelected = 0;
+    }
+    else if (CCA)
+    {
+        segmentSelected = 1;
+    }else if(original){
+        segmentSelected = 2;
+    }
+    
     // update image when slider value change
     imageAdjustment();
+    
 }
 
 //--------------------------------------------------------------
 void ofApp::draw()
 {
+    // do the segmentation here
+    imageSegmentation();
+    
+    // draw the image
     drawMat(processMat, 0, 0);
+    drawMat(mat, 0, 400);
+    
+    //draw the gui
     gui.draw();
 }
 
@@ -134,17 +157,122 @@ Mat ofApp::scalarAdd(Mat src, float val)
     return src + val;
 }
 
+// Mat ofApp::getForeGround(Mat src)
+//{
+//
+//     Mat greyMat = toCv(greyImg);
+//
+//     Mat mask = Mat::zeros(greyMat.rows, greyMat.cols, CV_8UC3);
+//
+//     // thresholding the input image matrix
+//     threshold(greyMat, greyMat, 128, 255, cv::THRESH_BINARY);
+//
+//     // run the connected component algorithm
+//     n = connectedComponentsWithStats(greyMat, labels, stats, centroids);
+//     cout << "Total Connected Components Detected: " << n << endl;
+//     cout << stats << endl;
+//     // create n different colors
+//     vector<Vec3b> colors(n);
+//     for (int i = 0; i < n; i++)
+//     {
+//         colors[i] = Vec3b(rand() % 256, rand() % 256, rand() % 256);
+//     }
+//
+//     // fill the result matrix with colors according to which component a pixel belongs to
+//     for (int i = 0; i < greyMat.rows; i++)
+//     {
+//         for (int j = 0; j < greyMat.cols; j++)
+//         {
+//             int label = labels.at<int>(i, j);
+//             mask.at<Vec3b>(i, j) = mat.at<Vec3b>(i, j);
+//         }
+//     }
+//     return mask;
+// }
+
 void ofApp::imageAdjustment()
 {
-//    // contrast
-//    mat.convertTo(mat, -1, 1, contrastVal);
-//    // saturation
-//    cvtColor(mat, mat, CV_BGR2HSV);
-//    vector<Mat> channels;
-//    split(mat, channels);
-//    channels[1] = channels[1] + saturationVal;
-//    merge(channels, mat);
-//    cvtColor(mat, mat, CV_HSV2BGR);
+    // contrast
+    mat.convertTo(processMat, -1, contrastVal, 0);
+
     // brightness
-    processMat = scalarAdd(mat, brightnessVal);
+    processMat = scalarAdd(processMat, brightnessVal);
+
+    cout << "imageAdjustment" << endl;
 }
+void ofApp::imageSegmentation()
+{
+    // otsu
+    if (segmentSelected == 0)
+    {
+        Mat tmp;
+        double th;
+        Mat alpha;
+        vector<Mat> bgr;
+        split(processMat, bgr);
+        // cvtColor(processMat, tmp, CV_BGR2GRAY);
+        th, alpha = cv::threshold(bgr[0], tmp, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+        //        bgr.push_back(alpha);
+        bitwise_and(bgr[0], tmp, bgr[0]);
+        bitwise_and(bgr[1], tmp, bgr[1]);
+        bitwise_and(bgr[2], tmp, bgr[2]);
+        merge(bgr, processMat);
+
+//        getForeGround(processMat);
+    }else if (segmentSelected == 1){
+        // cca
+        
+    }
+    cout << "image Segmentation" << endl;
+}
+void ofApp::getForeGround(Mat img)
+{
+    Mat rgbaImg;
+    int n;
+    // create flower mask
+    Mat mask = Mat::zeros(img.rows, img.cols, CV_8UC4);
+
+    // convert the original image to rgba
+    vector<Mat> rgba;
+    split(mat, rgba);                          // split orginal image matrix to rgb and save to rgba vector
+    Mat tmp(img.size(), CV_8UC1, Scalar(255)); // create alpha matrix
+    rgba.push_back(tmp);                       // add the alpha matrix to rgba vector
+    merge(rgba, rgbaImg);                      // conver the rgba vector to rgba matrix
+
+    // thresholding the input image matrix
+    threshold(img, img, 128, 255, cv::THRESH_BINARY);
+
+    // run the connected component algorithm
+    n = connectedComponentsWithStats(img, labels, stats, centroids);
+
+    // store the area and label to vector
+    vector<pair<int, int>> areas;
+    for (int i = 1; i < n; i++)
+    {
+        int area = stats.at<int>(i, cv::CC_STAT_AREA);
+        areas.push_back({area, i});
+    };
+
+    // sort areas to get the first two largest area i.e. flowers
+    sort(areas.rbegin(), areas.rend());
+}
+//void ofApp::drawCCA(int label)
+//{
+//    for (int i = 0; i < mat.rows; i++)
+//    {
+//        for (int j = 0; j < mat.cols; j++)
+//        {
+//            int label = labels.at<int>(i, j);
+//            //  the label of the pixel in the flowers region equal to the original pixel
+//            if (label == areas[0].second || label == areas[1].second)
+//            {
+//                mask.at<Vec4b>(i, j) = rgbaImg.at<Vec4b>(i, j);
+//            }
+//            else
+//            {
+//                // set the region outside the flower to transparent
+//                mask.at<Vec4b>(i, j)[3] = 0;
+//            }
+//        }
+//    }
+//}

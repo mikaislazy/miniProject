@@ -35,12 +35,23 @@ public:
     void imageAdjustment();
     void saveImage(String imgName, Mat saveImg);
     Mat scalarAdd(Mat src, float val); // add brightness
-
+    // Mat contrastAdjustment(Mat matIn, int contrast, int brightness);
+    void getForeGround(Mat src); // get the sorted area
+    void imageSegmentation(); // do the segmentation on the processed image
+    void drawCCA(int label); // draw the selected label area of the image
+    
     ofImage initImg;
     ofImage processImg;
+    ofImage greyImg;
     Mat mat;
     Mat processMat;
     string imgName;
+    // CCA
+    Mat labels;
+    Mat stats;
+    Mat centroids;
+    int n;
+    vector<pair<int, int>> areas;
     // gui
     ofxPanel gui;
     // filtering
@@ -48,14 +59,16 @@ public:
     ofxButton gaussian;
     ofxButton median;
     ofxFloatSlider brushSize;
-    int checkBoxSelected;
+    int filterSelected;
     // image adjustment
     ofxFloatSlider contrastVal;
     ofxFloatSlider saturationVal;
     ofxFloatSlider brightnessVal;
-    // binary image
-    ofxButton binaryOtsu;
-    // foreground extract
-    ofxButton knn;
-    ofxFloatSlider knnSize;
+    // image segmentation
+    ofxButton otsu;
+    ofxButton CCA;
+    ofxFloatSlider ccaSize;
+    int segmentSelected;
+    ofxButton original;
+
 };
