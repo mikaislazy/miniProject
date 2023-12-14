@@ -36,15 +36,16 @@ public:
     void saveImage(String imgName, Mat saveImg);
     Mat scalarAdd(Mat src, float val); // add brightness
     // Mat contrastAdjustment(Mat matIn, int contrast, int brightness);
-    void getForeGround(Mat src); // get the sorted area
+    vector<pair<int, int>>  getForeGround(Mat src); // get the sorted area
     void imageSegmentation(); // do the segmentation on the processed image
-    void drawCCA(int label); // draw the selected label area of the image
+    Mat drawCCA(int label, Mat img); // draw the selected label area of the image
     
     ofImage initImg;
     ofImage processImg;
     ofImage greyImg;
     Mat mat;
     Mat processMat;
+    Mat greyMat;
     string imgName;
     // CCA
     Mat labels;
@@ -67,7 +68,8 @@ public:
     // image segmentation
     ofxButton otsu;
     ofxButton CCA;
-    ofxFloatSlider ccaSize;
+    ofxIntSlider ccaLabel;
+    int maxLabel;
     int segmentSelected;
     ofxButton original;
 

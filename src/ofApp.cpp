@@ -4,14 +4,16 @@
 void ofApp::setup()
 {
     // image init set up
-    imgName = "flower1.jpg";
+    imgName = "apple.jpeg";
     initImg.load(imgName);
     greyImg.load(imgName);
     initImg.setImageType(OF_IMAGE_COLOR);
     greyImg.setImageType(OF_IMAGE_GRAYSCALE);
     mat = toCv(initImg);
     mat.copyTo(processMat);
-    
+    greyMat = toCv(greyImg);
+    areas = getForeGround(greyMat);
+
     // gui set up
     gui.setup();
     // image adjustement
@@ -27,8 +29,11 @@ void ofApp::setup()
 
     // convert image
     gui.add(otsu.setup("Otsu"));
-    gui.add(CCA.setup("CCA Segment"));
+    gui.add(CCA.setup("CCA"));
+    gui.add(ccaLabel.setup("CCA Label", 0, 0, n));
     gui.add(original.setup("Original Image"));
+    
+    
 }
 
 //--------------------------------------------------------------
@@ -47,8 +52,8 @@ void ofApp::update()
     {
         filterSelected = 2;
     }
-    
-    //select the segmentation method
+
+    // select the segmentation method
     if (otsu)
     {
         segmentSelected = 0;
@@ -56,13 +61,15 @@ void ofApp::update()
     else if (CCA)
     {
         segmentSelected = 1;
-    }else if(original){
+    }
+    else if (original)
+    {
+
         segmentSelected = 2;
     }
     
     // update image when slider value change
     imageAdjustment();
-    
 }
 
 //--------------------------------------------------------------
@@ -70,12 +77,12 @@ void ofApp::draw()
 {
     // do the segmentation here
     imageSegmentation();
-    
+
     // draw the image
     drawMat(processMat, 0, 0);
     drawMat(mat, 0, 400);
-    
-    //draw the gui
+
+    // draw the gui
     gui.draw();
 }
 
@@ -206,73 +213,85 @@ void ofApp::imageSegmentation()
     if (segmentSelected == 0)
     {
         Mat tmp;
-        double th;
-        Mat alpha;
         vector<Mat> bgr;
         split(processMat, bgr);
-        // cvtColor(processMat, tmp, CV_BGR2GRAY);
-        th, alpha = cv::threshold(bgr[0], tmp, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
-        //        bgr.push_back(alpha);
+        threshold(bgr[0], tmp, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
         bitwise_and(bgr[0], tmp, bgr[0]);
         bitwise_and(bgr[1], tmp, bgr[1]);
         bitwise_and(bgr[2], tmp, bgr[2]);
         merge(bgr, processMat);
-
-//        getForeGround(processMat);
-    }else if (segmentSelected == 1){
+    }
+    else if (segmentSelected == 1)
+    {
         // cca
-        
+        processMat = drawCCA(ccaLabel, processMat);
     }
     cout << "image Segmentation" << endl;
 }
-void ofApp::getForeGround(Mat img)
+vector<pair<int, int>> ofApp::getForeGround(Mat img)
 {
-    Mat rgbaImg;
-    int n;
-    // create flower mask
-    Mat mask = Mat::zeros(img.rows, img.cols, CV_8UC4);
-
-    // convert the original image to rgba
-    vector<Mat> rgba;
-    split(mat, rgba);                          // split orginal image matrix to rgb and save to rgba vector
-    Mat tmp(img.size(), CV_8UC1, Scalar(255)); // create alpha matrix
-    rgba.push_back(tmp);                       // add the alpha matrix to rgba vector
-    merge(rgba, rgbaImg);                      // conver the rgba vector to rgba matrix
-
+    int kernel = 5;
     // thresholding the input image matrix
     threshold(img, img, 128, 255, cv::THRESH_BINARY);
-
+    GaussianBlur(img, img, cv::Size(kernel, kernel), 0);
     // run the connected component algorithm
     n = connectedComponentsWithStats(img, labels, stats, centroids);
 
     // store the area and label to vector
     vector<pair<int, int>> areas;
-    for (int i = 1; i < n; i++)
+    for (int i = 0; i < n; i++)
     {
         int area = stats.at<int>(i, cv::CC_STAT_AREA);
+        
         areas.push_back({area, i});
+        
     };
-
-    // sort areas to get the first two largest area i.e. flowers
+    // sort areas in  descending order
     sort(areas.rbegin(), areas.rend());
+    
+    return areas;
 }
-//void ofApp::drawCCA(int label)
-//{
-//    for (int i = 0; i < mat.rows; i++)
-//    {
-//        for (int j = 0; j < mat.cols; j++)
-//        {
-//            int label = labels.at<int>(i, j);
-//            //  the label of the pixel in the flowers region equal to the original pixel
-//            if (label == areas[0].second || label == areas[1].second)
-//            {
-//                mask.at<Vec4b>(i, j) = rgbaImg.at<Vec4b>(i, j);
-//            }
-//            else
-//            {
-//                // set the region outside the flower to transparent
-//                mask.at<Vec4b>(i, j)[3] = 0;
-//            }
-//        }
-//    }
-//}
+Mat ofApp::drawCCA(int label, Mat img)
+{
+    Mat rgbaImg;
+    vector<int>::iterator it ;
+    
+    Mat mask = Mat::zeros(img.rows, img.cols, CV_8UC4);
+
+    // convert the original image to rgba
+    vector<Mat> rgba;
+    split(img, rgba);                          // split orginal image matrix to rgb and save to rgba vector
+    Mat tmp(img.size(), CV_8UC1, Scalar(255)); // create alpha matrix
+    rgba.push_back(tmp);                       // add the alpha matrix to rgba vector
+    merge(rgba, rgbaImg);                      // conver the rgba vector to rgba matrix
+
+    vector<int> drawLabel;
+    cout << "ccaLabel " << ccaLabel << endl;
+    for (int i = 1; i <= ccaLabel; i++)
+    {
+        int label = areas[i].second;
+        cout << "label: " << label<< endl;
+        drawLabel.push_back(label);
+    }
+//    
+    for (int i = 0; i < img.rows; i++)
+    {
+        for (int j = 0; j < img.cols; j++)
+        {
+            int label = labels.at<int>(i, j);
+            //  the label of the pixel in the flowers region equal to the original pixel
+            
+            it = find(drawLabel.begin(), drawLabel.end(), label);
+            if (it != drawLabel.end())
+            {
+                mask.at<Vec4b>(i, j) = rgbaImg.at<Vec4b>(i, j);
+            }
+            else
+            {
+                // set the region outside the flower to transparent
+                mask.at<Vec4b>(i, j)[3] = 0;
+            }
+        }
+    }
+    return mask;
+}
