@@ -61,12 +61,7 @@ public:
     vector<pair<int, int>> areas;
     // gui
     ofxPanel gui;
-    // filtering
-    ofxButton box;
-    ofxButton gaussian;
-    ofxButton median;
-    ofxFloatSlider brushSize;
-    int filterSelected;
+
     // image adjustment
     ofxFloatSlider contrastVal;
     ofxFloatSlider brightnessVal;

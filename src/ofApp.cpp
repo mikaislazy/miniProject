@@ -3,21 +3,17 @@
 //--------------------------------------------------------------
 void ofApp::setup()
 {
+    // turn on the camera and set the grabber
     vidGrabber.setDeviceID(0);
     vidGrabber.initGrabber(100, 100);
     // get the image path in data file
     string path = "../data";
     dir = ofDirectory(path);
-    // image init set up
+    // image index init set up
     imgIdx = 1;
     dir.listDir();
-    for (int i = 0; i < dir.size(); i++)
-    {
-        ofLogNotice(dir.getPath(i));
-    }
-    // imgLen = dir.size();
+    // load image
     imgName = dir.getPath(imgIdx - 1);
-    //    imgName = "faces.png";
     initImg.load(imgName);
     greyImg.load(imgName);
     initImg.setImageType(OF_IMAGE_COLOR);
@@ -26,11 +22,10 @@ void ofApp::setup()
     mat.copyTo(processMat);
     greyMat = toCv(greyImg);
     areas = getForeGround(greyMat);
-    // n = areas.size();
 
     // gui set up
     gui.setup();
-    // next or prev img
+    // slider to select other image in data folder
     gui.add(imgIdx.setup("Image Index", 1, 1, dir.size()));
     gui.add(confirmChgImg.setup("Change Image"));
 
@@ -38,12 +33,6 @@ void ofApp::setup()
     gui.setPosition(initImg.getWidth(), 0);
     gui.add(contrastVal.setup("Contrast Value", 1, 0.1, 10));
     gui.add(brightnessVal.setup("Brightness value", 0, -100, 100));
-
-    // filtering
-    gui.add(brushSize.setup("Brush Size", 1, 1, 30));
-    gui.add(box.setup("Box Filter"));
-    gui.add(gaussian.setup("Gaussian Filter"));
-    gui.add(median.setup("Median Filter"));
 
     // convert image
     gui.add(otsu.setup("Otsu"));
@@ -54,6 +43,7 @@ void ofApp::setup()
     // reset Button
     gui.add(reset.setup("Reset Parameter"));
 
+    // for hsv thresholding
     drawGui.setup();
     drawGui.add(minH.setup("Min H", 0, 0, 255));
     drawGui.add(minS.setup("Min S", 0, 0, 255));
@@ -66,11 +56,12 @@ void ofApp::setup()
 //--------------------------------------------------------------
 void ofApp::update()
 {
+    // reset parameter
     if (reset)
     {
         resetParam();
     }
-    // next or prev image
+    // change to other image
     if (confirmChgImg)
     {
         imgName = dir.getPath(imgIdx - 1);
@@ -82,29 +73,12 @@ void ofApp::update()
         mat.copyTo(processMat);
         greyMat = toCv(greyImg);
         areas = getForeGround(greyMat);
-        // n = areas.size();
+        ccaLabel = 0;
+        resetParam();
 
-        //        imgIdx.setMax(areas.size());
+        // change the maximum number of CCA Label to current image
         ofxIntSlider *slider = (ofxIntSlider *)gui.getControl("CCA Label");
         slider->setMax(areas.size());
-        vidGrabber.close();
-        ofVideoGrabber tmp;
-        tmp.setDeviceID(0);
-        tmp.initGrabber(initImg.getWidth(), initImg.getHeight());
-        vidGrabber = tmp;
-    }
-    // select checkbox for filtering
-    if (box)
-    {
-        filterSelected = 0;
-    }
-    else if (gaussian)
-    {
-        filterSelected = 1;
-    }
-    else if (median)
-    {
-        filterSelected = 2;
     }
 
     // select the segmentation method
@@ -124,9 +98,11 @@ void ofApp::update()
 
     // update image when slider value change
     imageAdjustment();
+
+    // when the user want to draw  on it
     if (drawOn)
     {
-
+        // do the hsv thresholding
         vidGrabber.update();
         if (vidGrabber.isFrameNew())
         {
@@ -144,11 +120,12 @@ void ofApp::update()
             toOf(mat_HSV_Threshold, im_temp);
 
             im_temp_gray.setFromPixels(im_temp.getPixels());
-
+            // find only 1 contour to track
             contourFinder.findContours(im_temp_gray, 5, (340 * 240) / 4, 1, false, true);
         }
     }
 
+    // when the user press D , then the contour will be drawn on the image and stored to the drawPoint
     for (int i = 0; i < drawingPoint.size(); i++)
     {
         cv::circle(processMat, cv::Point(drawingPoint[i].first, drawingPoint[i].second), 5, Scalar(0, 0, 255), -1);
@@ -164,32 +141,13 @@ void ofApp::draw()
 
     // draw the image
     drawMat(processMat, 0, 0);
-    drawMat(mat_HSV_Threshold, 400, 0);
+    drawMat(mat_HSV_Threshold, initImg.getWidth(), 0);
     // draw the gui
     gui.draw();
+    // only show the gui for hsv when user release key "D"
     if (drawOn)
     {
         drawGui.draw();
-        //     for (int i = 0; i < contourFinder.nBlobs; i++)
-        //     {
-        //         ofRectangle r = contourFinder.blobs.at(i).boundingRect;
-        //         // r.x += 320; r.y += 240;
-        //         // c.setHsb(i * 64, 255, 255);
-        //         ofSetColor(255, 0, 0);
-        //         ofNoFill();
-        //         ofDrawRectangle(r);
-        //         ofPoint center = contourFinder.blobs[i].centroid;
-        //         int centerX = static_cast<int>(center.x);
-        //         int centerY = static_cast<int>(center.y);
-        //         // cv::circle(processMat, cv::Point(centerX, centerY), 5, Scalar(0, 0, 255), -1);
-        //         drawingPoint.push_back({centerX, centerY});
-        //     }
-        //     for (int i = 0; i < drawingPoint.size(); i++)
-        //     {
-        //         cv::circle(processMat, cv::Point(drawingPoint[i].first, drawingPoint[i].second), 5, Scalar(0, 0, 255), -1);
-        //     }
-        //     ofSetColor(255, 255, 255);
-        //     drawMat(processMat, mat.cols, mat.cols);
     }
 }
 
@@ -209,7 +167,6 @@ void ofApp::keyPressed(int key)
             ofPoint center = contourFinder.blobs[i].centroid;
             int centerX = static_cast<int>(center.x);
             int centerY = static_cast<int>(center.y);
-            // cv::circle(processMat, cv::Point(centerX, centerY), 5, Scalar(0, 0, 255), -1);
             drawingPoint.push_back({centerX, centerY});
         }
     }
@@ -226,6 +183,7 @@ void ofApp::keyReleased(int key)
     if (key == 'd')
     {
         drawOn = !drawOn;
+        // when the user release d again after drawing, the drawing will be clear
         if (drawOn)
         {
             drawingPoint.clear();
@@ -352,6 +310,7 @@ vector<pair<int, int>> ofApp::getForeGround(Mat img)
 }
 Mat ofApp::drawCCA(int label, Mat img)
 {
+    // draw the selected number of label area of the image ( descending order)
     Mat rgbaImg;
     vector<int>::iterator it;
 
@@ -359,12 +318,13 @@ Mat ofApp::drawCCA(int label, Mat img)
 
     // convert the original image to rgba
     vector<Mat> rgba;
-    split(img, rgba);                          // split orginal image matrix to rgb and save to rgba vector
+    split(img, rgba);                          // split original image matrix to rgb and save to rgba vector
     Mat tmp(img.size(), CV_8UC1, Scalar(255)); // create alpha matrix
     rgba.push_back(tmp);                       // add the alpha matrix to rgba vector
-    merge(rgba, rgbaImg);                      // conver the rgba vector to rgba matrix
+    merge(rgba, rgbaImg);                      // convert the rgba vector to rgba matrix
 
     vector<int> drawLabel;
+    // draw the top n label area of the image
     cout << "ccaLabel " << ccaLabel << endl;
     for (int i = 1; i <= ccaLabel; i++)
     {
@@ -378,7 +338,6 @@ Mat ofApp::drawCCA(int label, Mat img)
         for (int j = 0; j < img.cols; j++)
         {
             int label = labels.at<int>(i, j);
-            //  the label of the pixel in the flowers region equal to the original pixel
 
             it = find(drawLabel.begin(), drawLabel.end(), label);
             if (it != drawLabel.end())
@@ -387,7 +346,7 @@ Mat ofApp::drawCCA(int label, Mat img)
             }
             else
             {
-                // set the region outside the flower to transparent
+                // set the other region transparent
                 mask.at<Vec4b>(i, j)[3] = 0;
             }
         }
@@ -396,9 +355,7 @@ Mat ofApp::drawCCA(int label, Mat img)
 }
 void ofApp::resetParam()
 {
-    filterSelected = -1;
     segmentSelected = 2;
-    brushSize = 0;
     contrastVal = 1;
     brightnessVal = 0;
     ccaLabel = 0;
