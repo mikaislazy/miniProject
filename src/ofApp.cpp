@@ -1,10 +1,21 @@
 #include "ofApp.h"
-
+#include <filesystem>
 //--------------------------------------------------------------
 void ofApp::setup()
 {
+    // get the image path in data file
+    string path = "../data";
+    dir = ofDirectory(path);
     // image init set up
-    imgName = "apple.jpeg";
+    imgIdx = 1;
+    dir.listDir();
+    for (int i = 0; i < dir.size(); i++)
+    {
+        ofLogNotice(dir.getPath(i));
+    }
+    // imgLen = dir.size();
+    imgName = dir.getPath(imgIdx - 1);
+    //    imgName = "faces.png";
     initImg.load(imgName);
     greyImg.load(imgName);
     initImg.setImageType(OF_IMAGE_COLOR);
@@ -13,9 +24,13 @@ void ofApp::setup()
     mat.copyTo(processMat);
     greyMat = toCv(greyImg);
     areas = getForeGround(greyMat);
-
+    // n = areas.size();
     // gui set up
     gui.setup();
+    // next or prev img
+    gui.add(imgIdx.setup("Image Index", 1, 1, dir.size()));
+    gui.add(confirmChgImg.setup("Change Image"));
+
     // image adjustement
     gui.setPosition(initImg.getWidth(), 0);
     gui.add(contrastVal.setup("Contrast Value", 1, 0.1, 10));
@@ -30,15 +45,38 @@ void ofApp::setup()
     // convert image
     gui.add(otsu.setup("Otsu"));
     gui.add(CCA.setup("CCA"));
-    gui.add(ccaLabel.setup("CCA Label", 0, 0, n));
+    gui.add(ccaLabel.setup("CCA Label", 0, 0, areas.size()));
     gui.add(original.setup("Original Image"));
-    
-    
+
+    // reset Button
+    gui.add(reset.setup("Reset Parameter"));
 }
 
 //--------------------------------------------------------------
 void ofApp::update()
 {
+    if (reset)
+    {
+        resetParam();
+    }
+    // next or prev image
+    if (confirmChgImg)
+    {
+        imgName = dir.getPath(imgIdx - 1);
+        initImg.load(imgName);
+        greyImg.load(imgName);
+        initImg.setImageType(OF_IMAGE_COLOR);
+        greyImg.setImageType(OF_IMAGE_GRAYSCALE);
+        mat = toCv(initImg);
+        mat.copyTo(processMat);
+        greyMat = toCv(greyImg);
+        areas = getForeGround(greyMat);
+        // n = areas.size();
+
+        //        imgIdx.setMax(areas.size());
+        ofxIntSlider *slider = (ofxIntSlider *)gui.getControl("CCA Label");
+        slider->setMax(areas.size());
+    }
     // select checkbox for filtering
     if (box)
     {
@@ -67,9 +105,10 @@ void ofApp::update()
 
         segmentSelected = 2;
     }
-    
+
     // update image when slider value change
     imageAdjustment();
+    // imgLen = dir.size();
 }
 
 //--------------------------------------------------------------
@@ -99,6 +138,10 @@ void ofApp::keyPressed(int key)
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key)
 {
+    if (key == 's')
+    {
+        saveImage("saveImg.png", processMat);
+    }
 }
 
 //--------------------------------------------------------------
@@ -163,40 +206,6 @@ Mat ofApp::scalarAdd(Mat src, float val)
 {
     return src + val;
 }
-
-// Mat ofApp::getForeGround(Mat src)
-//{
-//
-//     Mat greyMat = toCv(greyImg);
-//
-//     Mat mask = Mat::zeros(greyMat.rows, greyMat.cols, CV_8UC3);
-//
-//     // thresholding the input image matrix
-//     threshold(greyMat, greyMat, 128, 255, cv::THRESH_BINARY);
-//
-//     // run the connected component algorithm
-//     n = connectedComponentsWithStats(greyMat, labels, stats, centroids);
-//     cout << "Total Connected Components Detected: " << n << endl;
-//     cout << stats << endl;
-//     // create n different colors
-//     vector<Vec3b> colors(n);
-//     for (int i = 0; i < n; i++)
-//     {
-//         colors[i] = Vec3b(rand() % 256, rand() % 256, rand() % 256);
-//     }
-//
-//     // fill the result matrix with colors according to which component a pixel belongs to
-//     for (int i = 0; i < greyMat.rows; i++)
-//     {
-//         for (int j = 0; j < greyMat.cols; j++)
-//         {
-//             int label = labels.at<int>(i, j);
-//             mask.at<Vec3b>(i, j) = mat.at<Vec3b>(i, j);
-//         }
-//     }
-//     return mask;
-// }
-
 void ofApp::imageAdjustment()
 {
     // contrast
@@ -242,20 +251,19 @@ vector<pair<int, int>> ofApp::getForeGround(Mat img)
     for (int i = 0; i < n; i++)
     {
         int area = stats.at<int>(i, cv::CC_STAT_AREA);
-        
+
         areas.push_back({area, i});
-        
     };
     // sort areas in  descending order
     sort(areas.rbegin(), areas.rend());
-    
+
     return areas;
 }
 Mat ofApp::drawCCA(int label, Mat img)
 {
     Mat rgbaImg;
-    vector<int>::iterator it ;
-    
+    vector<int>::iterator it;
+
     Mat mask = Mat::zeros(img.rows, img.cols, CV_8UC4);
 
     // convert the original image to rgba
@@ -270,17 +278,17 @@ Mat ofApp::drawCCA(int label, Mat img)
     for (int i = 1; i <= ccaLabel; i++)
     {
         int label = areas[i].second;
-        cout << "label: " << label<< endl;
+        cout << "label: " << label << endl;
         drawLabel.push_back(label);
     }
-//    
+    //
     for (int i = 0; i < img.rows; i++)
     {
         for (int j = 0; j < img.cols; j++)
         {
             int label = labels.at<int>(i, j);
             //  the label of the pixel in the flowers region equal to the original pixel
-            
+
             it = find(drawLabel.begin(), drawLabel.end(), label);
             if (it != drawLabel.end())
             {
@@ -294,4 +302,13 @@ Mat ofApp::drawCCA(int label, Mat img)
         }
     }
     return mask;
+}
+void ofApp::resetParam()
+{
+    filterSelected = -1;
+    segmentSelected = 2;
+    brushSize = 0;
+    contrastVal = 1;
+    brightnessVal = 0;
+    ccaLabel = 0;
 }

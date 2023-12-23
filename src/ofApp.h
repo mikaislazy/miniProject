@@ -9,6 +9,7 @@
 
 using namespace ofxCv;
 using namespace cv;
+using namespace std;
 
 class ofApp : public ofBaseApp
 {
@@ -39,7 +40,9 @@ public:
     vector<pair<int, int>>  getForeGround(Mat src); // get the sorted area
     void imageSegmentation(); // do the segmentation on the processed image
     Mat drawCCA(int label, Mat img); // draw the selected label area of the image
-    
+    void resetParam();
+    //variable
+    ofDirectory dir;
     ofImage initImg;
     ofImage processImg;
     ofImage greyImg;
@@ -47,6 +50,8 @@ public:
     Mat processMat;
     Mat greyMat;
     string imgName;
+    int imgLen;
+    int curImg = 0;
     // CCA
     Mat labels;
     Mat stats;
@@ -63,14 +68,19 @@ public:
     int filterSelected;
     // image adjustment
     ofxFloatSlider contrastVal;
-    ofxFloatSlider saturationVal;
     ofxFloatSlider brightnessVal;
     // image segmentation
     ofxButton otsu;
     ofxButton CCA;
     ofxIntSlider ccaLabel;
     int maxLabel;
-    int segmentSelected;
+    int segmentSelected = 2;
     ofxButton original;
-
+    
+    // next image
+    ofxIntSlider imgIdx;
+    ofxButton confirmChgImg;
+    // reset Param
+    ofxButton reset;
+    
 };
