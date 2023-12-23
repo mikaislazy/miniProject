@@ -37,11 +37,12 @@ public:
     void saveImage(String imgName, Mat saveImg);
     Mat scalarAdd(Mat src, float val); // add brightness
     // Mat contrastAdjustment(Mat matIn, int contrast, int brightness);
-    vector<pair<int, int>>  getForeGround(Mat src); // get the sorted area
-    void imageSegmentation(); // do the segmentation on the processed image
-    Mat drawCCA(int label, Mat img); // draw the selected label area of the image
+    vector<pair<int, int>> getForeGround(Mat src); // get the sorted area
+    void imageSegmentation();                      // do the segmentation on the processed image
+    Mat drawCCA(int label, Mat img);               // draw the selected label area of the image
     void resetParam();
-    //variable
+
+    // variable
     ofDirectory dir;
     ofImage initImg;
     ofImage processImg;
@@ -76,11 +77,27 @@ public:
     int maxLabel;
     int segmentSelected = 2;
     ofxButton original;
-    
+
     // next image
     ofxIntSlider imgIdx;
     ofxButton confirmChgImg;
     // reset Param
     ofxButton reset;
-    
+    // draw
+    ofVideoGrabber vidGrabber;
+    ofImage im;
+    Mat drawing;
+    Mat mat_HSV;
+    Mat mat_HSV_Threshold;
+    Mat mat_HSV_Threshold_2;
+    ofxPanel drawGui;
+    bool drawOn = false;
+    ofxIntSlider minH;
+    ofxIntSlider maxH;
+    ofxIntSlider minS;
+    ofxIntSlider maxS;
+    ofxIntSlider minV;
+    ofxIntSlider maxV;
+    ofxCvContourFinder contourFinder;
+    vector<pair<int, int>> drawingPoint;
 };

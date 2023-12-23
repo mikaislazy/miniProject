@@ -3,6 +3,8 @@
 //--------------------------------------------------------------
 void ofApp::setup()
 {
+    vidGrabber.setDeviceID(0);
+    vidGrabber.initGrabber(100, 100);
     // get the image path in data file
     string path = "../data";
     dir = ofDirectory(path);
@@ -25,6 +27,7 @@ void ofApp::setup()
     greyMat = toCv(greyImg);
     areas = getForeGround(greyMat);
     // n = areas.size();
+
     // gui set up
     gui.setup();
     // next or prev img
@@ -50,6 +53,14 @@ void ofApp::setup()
 
     // reset Button
     gui.add(reset.setup("Reset Parameter"));
+
+    drawGui.setup();
+    drawGui.add(minH.setup("Min H", 0, 0, 255));
+    drawGui.add(minS.setup("Min S", 0, 0, 255));
+    drawGui.add(minV.setup("Min V", 0, 0, 255));
+    drawGui.add(maxH.setup("Max H", 255, 0, 255));
+    drawGui.add(maxS.setup("Max S", 255, 0, 255));
+    drawGui.add(maxV.setup("Max V", 255, 0, 255));
 }
 
 //--------------------------------------------------------------
@@ -76,6 +87,11 @@ void ofApp::update()
         //        imgIdx.setMax(areas.size());
         ofxIntSlider *slider = (ofxIntSlider *)gui.getControl("CCA Label");
         slider->setMax(areas.size());
+        vidGrabber.close();
+        ofVideoGrabber tmp;
+        tmp.setDeviceID(0);
+        tmp.initGrabber(initImg.getWidth(), initImg.getHeight());
+        vidGrabber = tmp;
     }
     // select checkbox for filtering
     if (box)
@@ -108,21 +124,68 @@ void ofApp::update()
 
     // update image when slider value change
     imageAdjustment();
-    // imgLen = dir.size();
+    if (drawOn)
+    {
+
+        vidGrabber.update();
+        if (vidGrabber.isFrameNew())
+        {
+            im.setFromPixels(vidGrabber.getPixels());
+            im.resize(initImg.getWidth(), initImg.getHeight());
+            drawing = toCv(im);
+            cvtColor(drawing, mat_HSV, CV_BGR2HSV);
+            inRange(mat_HSV, Scalar(minH, minS, minV), Scalar(maxH, maxS, maxV), mat_HSV_Threshold);
+            erode(mat_HSV_Threshold, mat_HSV_Threshold, Mat());
+            dilate(mat_HSV_Threshold, mat_HSV_Threshold, Mat());
+
+            ofImage im_temp;
+            ofxCvGrayscaleImage im_temp_gray;
+
+            toOf(mat_HSV_Threshold, im_temp);
+
+            im_temp_gray.setFromPixels(im_temp.getPixels());
+
+            contourFinder.findContours(im_temp_gray, 5, (340 * 240) / 4, 1, false, true);
+        }
+    }
 }
 
 //--------------------------------------------------------------
 void ofApp::draw()
 {
+
     // do the segmentation here
     imageSegmentation();
 
     // draw the image
     drawMat(processMat, 0, 0);
-    drawMat(mat, 0, 400);
-
+    drawMat(mat_HSV_Threshold, 0, 400);
     // draw the gui
     gui.draw();
+    if (drawOn)
+    {
+        drawGui.draw();
+        for (int i = 0; i < contourFinder.nBlobs; i++)
+        {
+            ofRectangle r = contourFinder.blobs.at(i).boundingRect;
+            // r.x += 320; r.y += 240;
+            // c.setHsb(i * 64, 255, 255);
+            ofSetColor(255, 0, 0);
+            ofNoFill();
+            ofDrawRectangle(r);
+            ofPoint center = contourFinder.blobs[i].centroid;
+            int centerX = static_cast<int>(center.x);
+            int centerY = static_cast<int>(center.y);
+            // cv::circle(processMat, cv::Point(centerX, centerY), 5, Scalar(0, 0, 255), -1);
+            drawingPoint.push_back({centerX, centerY});
+        }
+        for (int i = 0; i < drawingPoint.size(); i++)
+        {
+            cv::circle(processMat, cv::Point(drawingPoint[i].first, drawingPoint[i].second), 5, Scalar(0, 0, 255), -1);
+        }
+        ofSetColor(255, 255, 255);
+        drawMat(processMat, mat.cols, mat.cols);
+    }
 }
 
 //--------------------------------------------------------------
@@ -141,6 +204,15 @@ void ofApp::keyReleased(int key)
     if (key == 's')
     {
         saveImage("saveImg.png", processMat);
+    }
+
+    if (key == 'd')
+    {
+        drawOn = !drawOn;
+        if (drawOn)
+        {
+            drawingPoint.clear();
+        }
     }
 }
 
@@ -197,7 +269,9 @@ void ofApp::dragEvent(ofDragInfo dragInfo)
 void ofApp::saveImage(String imgName, Mat saveImg)
 {
     ofImage tmp;
-    toOf(saveImg, tmp); // convert mat to ofImage
+    Mat tmpMat;
+    saveImg.copyTo(tmpMat);
+    toOf(tmpMat, tmp); // convert mat to ofImage
     ofSaveImage(tmp.getPixels(), imgName);
     cout << "Save Image" << endl;
 }
