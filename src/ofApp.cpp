@@ -148,6 +148,11 @@ void ofApp::update()
             contourFinder.findContours(im_temp_gray, 5, (340 * 240) / 4, 1, false, true);
         }
     }
+
+    for (int i = 0; i < drawingPoint.size(); i++)
+    {
+        cv::circle(processMat, cv::Point(drawingPoint[i].first, drawingPoint[i].second), 5, Scalar(0, 0, 255), -1);
+    }
 }
 
 //--------------------------------------------------------------
@@ -159,32 +164,32 @@ void ofApp::draw()
 
     // draw the image
     drawMat(processMat, 0, 0);
-    drawMat(mat_HSV_Threshold, 0, 400);
+    drawMat(mat_HSV_Threshold, 400, 0);
     // draw the gui
     gui.draw();
     if (drawOn)
     {
         drawGui.draw();
-        for (int i = 0; i < contourFinder.nBlobs; i++)
-        {
-            ofRectangle r = contourFinder.blobs.at(i).boundingRect;
-            // r.x += 320; r.y += 240;
-            // c.setHsb(i * 64, 255, 255);
-            ofSetColor(255, 0, 0);
-            ofNoFill();
-            ofDrawRectangle(r);
-            ofPoint center = contourFinder.blobs[i].centroid;
-            int centerX = static_cast<int>(center.x);
-            int centerY = static_cast<int>(center.y);
-            // cv::circle(processMat, cv::Point(centerX, centerY), 5, Scalar(0, 0, 255), -1);
-            drawingPoint.push_back({centerX, centerY});
-        }
-        for (int i = 0; i < drawingPoint.size(); i++)
-        {
-            cv::circle(processMat, cv::Point(drawingPoint[i].first, drawingPoint[i].second), 5, Scalar(0, 0, 255), -1);
-        }
-        ofSetColor(255, 255, 255);
-        drawMat(processMat, mat.cols, mat.cols);
+        //     for (int i = 0; i < contourFinder.nBlobs; i++)
+        //     {
+        //         ofRectangle r = contourFinder.blobs.at(i).boundingRect;
+        //         // r.x += 320; r.y += 240;
+        //         // c.setHsb(i * 64, 255, 255);
+        //         ofSetColor(255, 0, 0);
+        //         ofNoFill();
+        //         ofDrawRectangle(r);
+        //         ofPoint center = contourFinder.blobs[i].centroid;
+        //         int centerX = static_cast<int>(center.x);
+        //         int centerY = static_cast<int>(center.y);
+        //         // cv::circle(processMat, cv::Point(centerX, centerY), 5, Scalar(0, 0, 255), -1);
+        //         drawingPoint.push_back({centerX, centerY});
+        //     }
+        //     for (int i = 0; i < drawingPoint.size(); i++)
+        //     {
+        //         cv::circle(processMat, cv::Point(drawingPoint[i].first, drawingPoint[i].second), 5, Scalar(0, 0, 255), -1);
+        //     }
+        //     ofSetColor(255, 255, 255);
+        //     drawMat(processMat, mat.cols, mat.cols);
     }
 }
 
@@ -196,6 +201,18 @@ void ofApp::exit()
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key)
 {
+    if (key == 'd')
+    {
+        for (int i = 0; i < contourFinder.nBlobs; i++)
+        {
+
+            ofPoint center = contourFinder.blobs[i].centroid;
+            int centerX = static_cast<int>(center.x);
+            int centerY = static_cast<int>(center.y);
+            // cv::circle(processMat, cv::Point(centerX, centerY), 5, Scalar(0, 0, 255), -1);
+            drawingPoint.push_back({centerX, centerY});
+        }
+    }
 }
 
 //--------------------------------------------------------------
@@ -385,4 +402,5 @@ void ofApp::resetParam()
     contrastVal = 1;
     brightnessVal = 0;
     ccaLabel = 0;
+    drawingPoint.clear();
 }
