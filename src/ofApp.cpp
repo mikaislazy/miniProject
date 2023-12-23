@@ -141,12 +141,13 @@ void ofApp::draw()
 
     // draw the image
     drawMat(processMat, 0, 0);
-    drawMat(mat_HSV_Threshold, initImg.getWidth(), 0);
+    
     // draw the gui
     gui.draw();
     // only show the gui for hsv when user release key "D"
     if (drawOn)
     {
+        drawMat(mat_HSV_Threshold, initImg.getWidth(), 0);
         drawGui.draw();
     }
 }
